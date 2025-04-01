@@ -2,6 +2,7 @@
 // middleware to verify if user is present or not..//
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
+// authorization.
 async function verifyUser(req,res,next) {
     try {
     /*
@@ -18,17 +19,19 @@ async function verifyUser(req,res,next) {
                 message: "Unauthorized request"
             });
         }
-        const decoded = jwt.verify(token, process.env.ACESS_TOKEN_SECRET);
-        console.log('decoded token is :',decoded);
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        // console.log('decoded token is :',decoded);
+        // console.log('decoded tokenID is :',decoded.id);
 
-        const user = await User.findById(decoded?._id);
+        const user = await User.findById(decoded?.id);
+        // console.log(`user object is is ${user}`);
 
         if (!user) {
             return res.status(401).json({
                 message: "Invalid Access Token"
               });
         }
-        console.log('user object is:',user);
+        // console.log('user object is:',user);
         req.user = user;
         next();
 

@@ -4,6 +4,7 @@ const router = Router();
 import { loginUser } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.js";
 import { verifyUser } from "../middlewares/auth.middleware.js";
+import { logoutUser } from "../controllers/user.controller.js";
 
 router.route("/register").post(
     upload.fields([
@@ -18,7 +19,8 @@ router.route("/register").post(
     ]),
     registerUser
     )
-router.route("/login").post( loginUser);
+router.route("/login").post(loginUser);
+router.route("/logout").post(verifyUser, logoutUser);
 
 
 export default router;

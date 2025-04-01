@@ -58,36 +58,39 @@ userSchema.pre('save', async function (next) {
 
 // method for checking if password is correct
 userSchema.methods.isPasswordCorrect = async function (password) {
-    console.log(password , 'password in db');
-    console.log(this.password , 'password hash');
+    // console.log(password , 'password in db');
+    // console.log(this.password , 'password hash');
     const pass = await bcrypt.compare(password, this.password);
     return pass;
 }
 // methods for generating Access Token and Refresh Tokens .
 userSchema.methods.generateAccessToken = function () {
-    jwt.sign(
+   return jwt.sign(
         {
-        id: this._id,
-        username: this._username,
-        email: this.email,
-        fullname: this.fullname,
-    },
-    process.env.ACCESS_TOKEN_SECRET,
+            id: this._id,
+            username: this.username,
+            email: this.email,
+            fullname: this.fullname,
+        },
+        process.env.ACCESS_TOKEN_SECRET,
         {
             expiresIn:'1d',
         },
     )
+
+    // console.log('access token is', process.env.ACCESS_TOKEN_SECRET);
 }
 userSchema.methods.generateRefreshToken = function () {
-    jwt.sign(
+   return jwt.sign(
         {
-        id: this._id,
-    },
-    process.env.REFRESH_TOKEN_SECRET,
+            id: this._id,
+        },
+        process.env.REFRESH_TOKEN_SECRET,
         {
             expiresIn:'10d',
         },
     )
+    console.log('refresh token is',process.env.REFRESH_TOKEN_SECRET);
 }
 
 

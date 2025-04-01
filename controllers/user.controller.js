@@ -1,8 +1,9 @@
 import { User } from "../models/user.model.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
+import jwt from "jsonwebtoken";
 
 
-
+// helper function to generate Acess and Refresh Tokens and send them in as Objects.
 async function generateRefreshAndAccessToken(userId) {
   try {
     // find user , generate access and refresh token for user
@@ -10,10 +11,12 @@ async function generateRefreshAndAccessToken(userId) {
     if (!user) {
       return res.status(404).json({ error: "user not found" });
     }
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
+    // console.log(`user is :${user}`);
+    let accessToken = user.generateAccessToken();
+    let refreshToken = user.generateRefreshToken();
 
-    user.refreshToken = refreshToken;
+    // console.log(`access token is : ${accessToken}`);
+    // console.log(`refresh token is : ${refreshToken}`);
     await user.save({ validateBeforeSave: true });
     return { accessToken, refreshToken };
 
@@ -23,6 +26,7 @@ async function generateRefreshAndAccessToken(userId) {
   }
 }
 
+// function to register a new User.
 async function registerUser(req, res) {
   // console.log(req.files);
   /*
@@ -98,6 +102,7 @@ async function registerUser(req, res) {
   }
 }
 
+// function to login registered User.
 async function loginUser(req, res) {
   /*
  -- get fields/data from the frontend/req.body
@@ -131,14 +136,16 @@ async function loginUser(req, res) {
     // console.log(`user is ${user}`);
 
     let isPasswordiscorrect =   await user.isPasswordCorrect(password);
-    console.log("isPassisCorrect", isPasswordiscorrect);
+    // console.log("isPassisCorrect", isPasswordiscorrect);
     // checking for password
     if (!isPasswordiscorrect) {
       return res.status(401).json({
         message:"password is incorrect"
       })
     }
+
     const { accessToken, refreshToken } = await generateRefreshAndAccessToken(user._id);
+    // console.log(generateRefreshAndAccessToken(user._id));
 
     // remove password and refresh Token from the user object
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
@@ -166,19 +173,89 @@ async function loginUser(req, res) {
     });
   }
 }
-// async function logoutUser(req, res) {
-//   /*
-//  -- find user from db
-//  -- remove the cookies and refresh token from db
-//  -- send empty user object abd clear the cookie
-//   */
-//   try {
+// function to logOut existing User.
+async function logoutUser(req, res) {
+  /*
+ -- find user from db
+ -- remove the cookies and refresh token from db
+ -- send empty user object abd clear the cookie
+ -- better way is you find and update the refresh token as undefined and cookie as empty
+  */
+  try {
+    await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        $set: {
+          refreshToken:undefined
+        }
+      },
+      {
+        new:true
+      }
 
-//   } catch (error) {
-//     return res.status(500).json({
-//       error: error.message
-//     });
-//   }
-// }
+    )
+    const options = {
+      httpOnly: true,
+      secure:true
+    }
+    return res
+      .status(200)
+      .clearCookie("accessToken", options)
+      .clearCookie("refreshToken", options)
+      .json({data:{}, message: "User has Logged Out SuccessFuLLy" });
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message
+    });
+  }
+}
+// function to refreshAccess Token or session storage.
 
-export { registerUser, loginUser };
+/*
+-->get the refresh token from cookies.or from front-end../
+-->get our  refreshToken from db
+--> check if both are the same , if no , send err.
+--> get the decoded token , find user by db call.
+--> check if the incomingrefreshToken  from server is equal to the refreshToken onn Database.
+--> if not then send error
+--> generate new tokens if true;
+
+*/
+async function refreshAccessToken(req, res) {
+  try {
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+    if (incomingRefreshToken) {
+      return res.status(401).json({
+        message: "Unauthorized Request"
+      });
+    }
+    const decodedToken = jwt.verify(incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+    console.log(decodedToken);
+    const user = await User.findById(decodedToken?._id);
+    if (!user) {
+      return res.status(401).josn({
+        message: "invalid token."
+      })
+    }
+    if (incomingRefreshToken !== user?.refreshToken) {
+      return res.status(401).josn({
+        message: "token expired."
+      })
+    }
+    const options = {
+      httpOnly: true,
+      secure: true,
+    }
+    const { accessToken, newRefreshToken } = await generateRefreshAndAccessToken(user._id);
+
+    return res.status(200).cookie('accessToken', accessToken, options).cookie('refreshToken', newRefreshToken, options).json(
+      { accessToken, refreshToken: newRefreshToken })
+  }
+  catch (error) {
+    return res.status(500).json({ error: error.message })
+  }
+}
+
+export { registerUser, loginUser  , logoutUser};
