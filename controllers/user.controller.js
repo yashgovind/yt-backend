@@ -224,7 +224,8 @@ async function logoutUser(req, res) {
 async function refreshAccessToken(req, res) {
   try {
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
-    if (incomingRefreshToken) {
+    console.log('incomingRefreshToken', incomingRefreshToken);
+    if (!incomingRefreshToken) {
       return res.status(401).json({
         message: "Unauthorized Request"
       });
@@ -232,7 +233,7 @@ async function refreshAccessToken(req, res) {
     const decodedToken = jwt.verify(incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
-    console.log(decodedToken);
+    console.log('decodedtoken is'  , decodedToken);
     const user = await User.findById(decodedToken?._id);
     if (!user) {
       return res.status(401).josn({
@@ -249,9 +250,12 @@ async function refreshAccessToken(req, res) {
       secure: true,
     }
     const { accessToken, newRefreshToken } = await generateRefreshAndAccessToken(user._id);
+    return res
+    .cookie('accessToken', accessToken, options)
+    .cookie('refreshToken', newRefreshToken, options)
+    .status(200) // Status should come before JSON
+    .json({ accessToken, refreshToken: newRefreshToken });
 
-    return res.status(200).cookie('accessToken', accessToken, options).cookie('refreshToken', newRefreshToken, options).json(
-      { accessToken, refreshToken: newRefreshToken })
   }
   catch (error) {
     return res.status(500).json({ error: error.message })
