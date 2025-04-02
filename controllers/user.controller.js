@@ -1,3 +1,4 @@
+import { messageLink } from "discord.js";
 import { User } from "../models/user.model.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
@@ -102,7 +103,6 @@ async function registerUser(req, res) {
     return res.status(500).json({ error: error.message });
   }
 }
-
 // function to login registered User.
 async function loginUser(req, res) {
   /*
@@ -113,6 +113,7 @@ async function loginUser(req, res) {
  -- generate access and refresh token
  -- set the refresh token and access in a cookie or a session
  -- find User logged in and remove password and refreshToken
+}
   */
   try {
     // console.log('user from db is :', User);
@@ -223,25 +224,25 @@ async function refreshAccessToken(req, res) {
   */
   try {
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
-    console.log('incomingRefreshToken', incomingRefreshToken);
+    // console.log('incomingRefreshToken', incomingRefreshToken);
     if (!incomingRefreshToken) {
       return res.status(401).json({
         message: "Unauthorized Request"
       });
     }
-    // from here
+    // this can be done in the auth middleware itself by passing in the incoming token.
     const decodedToken = jwt.verify(incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
-    console.log('decodedtoken is', decodedToken);
+    // console.log('decodedtoken is', decodedToken);
     const user = await User.findById(decodedToken?.id);
-    console.log(`user is is ${user}`);
+    // console.log(req.user?.id);
+    // console.log(`user is is ${user}`);
     if (!user) {
       return res.status(401).json({
         message: "invalid token."
       })
     }
-    // to here  you can do it in the auth middleware itself../
     if (incomingRefreshToken !== user?.refreshToken) {
       return res.status(401).json({
         message: "token expired."
@@ -263,12 +264,163 @@ async function refreshAccessToken(req, res) {
     return res.status(500).json({ error: error.message })
   }
 }
-// function to getAllUsers
-// function to updateUserAvatar
-// function to updateUserCoverImage
-// function to changeCurrentPassword
+// function to changeUserCurrentPassword
+async function changeChurrentUserPassword(req, res) {
+  /*
+  -->get fields(old pass,new pass) from front-end
+  -->get  user from db
+  --> check if pass is correct by passing isPasscorrectfunction and do basic error handling
+  -->set new password and save in db
+  */
+  try {
+    const { oldPass, newPass } = req.body;
+   const user =  await User.findById(req.user?._id);
+    const isPasswordTrue = await user.isPasswordCorrect(oldPass);
+    if (!isPasswordTrue) {
+      return res.status(404).json({
+        message: "pass not true"
+      });
+    }
+    user.password = newPass;
+    await user.save({ validateBeforeSave: false });
+
+    return res
+      .status(200)
+      .json({
+        data: {},
+        message: "pass changed successfully"
+      });
+
+  } catch (error) {
+    return res.status(500).json({ error: error.message })
+  }
+}
+// function to getCurrentUser
+async function getCurrentUser(req, res) {
+  return res.status(200).json({
+    data: req.user
+  })
+}
 // function to updateAccountDetails
+async function updateAccountDetails(req, res) {
+  /*
+  ->get fullname,email,username,other fields you need to update from frontend and do error handling
+  ->get user from db and update fullname,email,username
+  -> send updated user data response.
+  */
+  try {
+    const { fullname, username, email } = req.body;
+
+    if (!fullname || !email || !username) {
+      return res.status(400).json({
+        message: "All fields are needed"
+      });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.user?._id ,
+      {
+        $set: {
+          fullname,
+          email,
+          username
+        }
+      },
+      {new:true}
+    ).select("-password");
+
+    return res.status(200).json({
+      data: { user },
+      message: "updated user details"
+    });
+  } catch (error) {
+    return res.status(500).json({
+     message:error.message
+   })
+  }
+}
+
+// function to updateUserAvatar
+
+/*
+->get single file from the avatarFilePath , do basic error handling
+->upload the avatar to cloudinary , check if url is present . if not then throw error
+->find user and update the user avatar.
+same logic for updateUserCoverImage
+*/
+// function to updateUserCoverImage
+async function updateUserAvatar(req, res) {
+  try {
+    const avatarLocalPath = req.file?.path;
+    if (!avatarLocalPath) {
+      return res.status(400).json({
+        message: "avatar file missing"
+      });
+    }
+    const avatar = await uploadToCloudinary(avatarLocalPath);
+    if (!avatar.url) {
+      return res.status(400).json({
+        message: "error while uploading avatar"
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(req.user?._id,
+      {
+        $set: {
+          avatar: avatar.url
+        }
+      },
+      { new: true }
+    ).select("-password");
+
+    return res.status(200).json({
+      message: "updated avatar",
+      data: { user }
+    });
+  }
+ catch (error) {
+    return res.status(500).json({
+      message:error.message
+    })
+  }
+}
+
+async function updateUserCoverImage(req, res) {
+  try {
+    const coverImageLocalPath = req.file?.path;
+    if (!coverImageLocalPath) {
+      return res.status(400).json({
+        message: "avatar file missing"
+      });
+    }
+    const coverImage = await uploadToCloudinary(coverImageLocalPath);
+    if (!coverImage.url) {
+      return res.status(400).json({
+        message: "error while uploading avatar"
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(req.user?._id,
+      {
+        $set: {
+          coverImage:coverImage.url
+        }
+      },
+      { new: true }
+    ).select("-password");
+
+    return res.status(200).json({
+      message: "updated coverImage",
+      data: { user }
+    });
+  }
+ catch (error) {
+    return res.status(500).json({
+      message:error.message
+    })
+  }
+}
+
 // function to getChannelProfile
 // function to get userWatchHistory
 
-export { registerUser, loginUser  , logoutUser , refreshAccessToken};
+export { registerUser, loginUser  , logoutUser , refreshAccessToken , updateAccountDetails,changeChurrentUserPassword,updateUserAvatar,updateUserCoverImage};
