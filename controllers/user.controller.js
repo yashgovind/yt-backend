@@ -15,7 +15,7 @@ async function generateRefreshAndAccessToken(userId) {
     let accessToken = user.generateAccessToken();
     let refreshToken = user.generateRefreshToken();
 
-    user.refreshToken = refreshToken; // save the refreshToken 
+    user.refreshToken = refreshToken; // save the refreshToken in db
     // console.log(`access token is : ${accessToken}`);
     // console.log(`refresh token is : ${refreshToken}`);
     await user.save({ validateBeforeSave: true });
