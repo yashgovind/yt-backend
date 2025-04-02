@@ -210,18 +210,21 @@ async function logoutUser(req, res) {
   }
 }
 // function to refreshAccess Token or session storage.
-
-/*
--->get the refresh token from cookies.or from front-end../
--->get our  refreshToken from db
---> check if both are the same , if no , send err.
---> get the decoded token , find user by db call.
---> check if the incomingrefreshToken  from server is equal to the refreshToken onn Database.
---> if not then send error
---> generate new tokens if true;
-
-*/
 async function refreshAccessToken(req, res) {
+  /*
+  -->get the refresh token from cookies.or from front-end../
+  -->get our  refreshToken from db
+  --> check if both are the same , if no , send err.
+  --> get the decoded token , find user by db call.
+  --> check if the incomingrefreshToken  from server is equal to the refreshToken onn Database.
+  --> if not then send error
+  --> generate new tokens if true
+  
+  Decoded Token :
+  decodedtoken is { id: '67eaff5c25b11290c904bd9c', iat: 1743582572, exp: 1744446572 }
+  */
+  // refreshToken from db:-->eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ZWFmZjVjMjViMTEyOTBjOTA0YmQ5YyIsImlhdCI6MTc0MzYxMDA4MCwiZXhwIjoxNzQ0NDc0MDgwfQ.0iF5L9eTM8ocaf9_GpCsDlEU7RhhNRcEiYgmWypwctc
+  // incomingRefreshToken eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ZWFmZjVjMjViMTEyOTBjOTA0YmQ5YyIsImlhdCI6MTc0MzYxMDA4MCwiZXhwIjoxNzQ0NDc0MDgwfQ.0iF5L9eTM8ocaf9_GpCsDlEU7RhhNRcEiYgmWypwctc
   try {
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
     console.log('incomingRefreshToken', incomingRefreshToken);
@@ -230,18 +233,21 @@ async function refreshAccessToken(req, res) {
         message: "Unauthorized Request"
       });
     }
+    // from here
     const decodedToken = jwt.verify(incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
-    console.log('decodedtoken is'  , decodedToken);
-    const user = await User.findById(decodedToken?._id);
+    console.log('decodedtoken is', decodedToken);
+    const user = await User.findById(decodedToken?.id);
+    console.log(`user is is ${user}`);
     if (!user) {
       return res.status(401).josn({
         message: "invalid token."
       })
     }
+    // to here  you can do it in the auth middleware itself../
     if (incomingRefreshToken !== user?.refreshToken) {
-      return res.status(401).josn({
+      return res.status(401).json({
         message: "token expired."
       })
     }
@@ -261,5 +267,15 @@ async function refreshAccessToken(req, res) {
     return res.status(500).json({ error: error.message })
   }
 }
+
+/*
+*/
+// function to getAllUsers
+// function to updateUserAvatar
+// function to updateUserCoverImage
+// function to changeCurrentPassword
+// function to updateAccountDetails
+// function to getChannelProfile
+// function to get userWatchHistory
 
 export { registerUser, loginUser  , logoutUser , refreshAccessToken};
