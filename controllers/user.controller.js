@@ -27,7 +27,6 @@ async function generateRefreshAndAccessToken(userId) {
     return res.status(500).json({ error: error.message });
   }
 }
-
 // function to register a new User.
 async function registerUser(req, res) {
   // console.log(req.files);
@@ -338,17 +337,14 @@ async function updateAccountDetails(req, res) {
    })
   }
 }
-
 // function to updateUserAvatar
-
-/*
+async function updateUserAvatar(req, res) {
+  /*
 ->get single file from the avatarFilePath , do basic error handling
 ->upload the avatar to cloudinary , check if url is present . if not then throw error
 ->find user and update the user avatar.
 same logic for updateUserCoverImage
 */
-// function to updateUserCoverImage
-async function updateUserAvatar(req, res) {
   try {
     const avatarLocalPath = req.file?.path;
     if (!avatarLocalPath) {
@@ -383,7 +379,7 @@ async function updateUserAvatar(req, res) {
     })
   }
 }
-
+// function to updateUserCoverImage
 async function updateUserCoverImage(req, res) {
   try {
     const coverImageLocalPath = req.file?.path;
@@ -419,7 +415,6 @@ async function updateUserCoverImage(req, res) {
     })
   }
 }
-
 // function to getChannelProfile
 // function to get userWatchHistory
 
