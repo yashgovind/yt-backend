@@ -219,7 +219,7 @@ async function refreshAccessToken(req, res) {
   --> check if the incomingrefreshToken  from server is equal to the refreshToken onn Database.
   --> if not then send error
   --> generate new tokens if true
-  
+
   Decoded Token :
   decodedtoken is { id: '67eaff5c25b11290c904bd9c', iat: 1743582572, exp: 1744446572 }
   */
@@ -241,7 +241,7 @@ async function refreshAccessToken(req, res) {
     const user = await User.findById(decodedToken?.id);
     console.log(`user is is ${user}`);
     if (!user) {
-      return res.status(401).josn({
+      return res.status(401).json({
         message: "invalid token."
       })
     }

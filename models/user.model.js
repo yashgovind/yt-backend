@@ -90,7 +90,7 @@ userSchema.methods.generateRefreshToken = function () {
             expiresIn:'10d',
         },
     )
-    console.log('refresh token is',process.env.REFRESH_TOKEN_SECRET);
+    // console.log('refresh token is',process.env.REFRESH_TOKEN_SECRET);
 }
 
 
