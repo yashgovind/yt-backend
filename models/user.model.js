@@ -74,7 +74,7 @@ userSchema.methods.generateAccessToken = function () {
         },
         process.env.ACCESS_TOKEN_SECRET,
         {
-            expiresIn:'1d',
+            expiresIn:'10m',
         },
     )
 
@@ -87,10 +87,10 @@ userSchema.methods.generateRefreshToken = function () {
         },
         process.env.REFRESH_TOKEN_SECRET,
         {
-            expiresIn:'10d',
+            expiresIn:'1d',
         },
     )
-    console.log('refresh token is',process.env.REFRESH_TOKEN_SECRET);
+    // console.log('refresh token is',process.env.REFRESH_TOKEN_SECRET);
 }
 
 
