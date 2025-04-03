@@ -23,7 +23,7 @@ async function verifyUser(req,res,next) {
         // console.log('decoded token is :',decoded);
         // console.log('decoded tokenID is :',decoded.id);
 
-        const user = await User.findById(decoded?.id);
+        const user = await User.findById(decoded?.id).select("-password -refreshToken");
         // console.log(`user object is is ${user}`);
 
         if (!user) {

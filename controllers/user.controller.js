@@ -3,7 +3,7 @@ import { User } from "../models/user.model.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
 
-
+//#TODO: helper function to delete Old images and allow for uploading of new Image../
 // helper function to generate Acess and Refresh Tokens and send them in as Objects.
 async function generateRefreshAndAccessToken(userId) {
   try {
@@ -21,12 +21,11 @@ async function generateRefreshAndAccessToken(userId) {
     // console.log(`refresh token is : ${refreshToken}`);
     await user.save({ validateBeforeSave: true });
     return { accessToken, refreshToken };
-
-
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 }
+
 // function to register a new User.
 async function registerUser(req, res) {
   // console.log(req.files);
@@ -44,8 +43,11 @@ async function registerUser(req, res) {
     */
   try {
     const { fullname, email, username, password } = req.body;
+    // console.log('register req is', req.body);
     if (
-      [fullname, email, username, password].some((field) => field?.trim() === "")
+      [fullname, email, username, password].some(
+        (field) => field?.trim() === ""
+      )
     ) {
       return res.status(400).json({ error: "all fields are needed" });
     }
@@ -55,7 +57,7 @@ async function registerUser(req, res) {
 
     if (existedUser) {
       return res
-        .status(409)
+        .status(400)
         .json({ error: "user with email or username already exists" });
     }
     const avatarLocalPath = req.files?.avatar[0]?.path;
@@ -63,7 +65,11 @@ async function registerUser(req, res) {
     // const coverImageLocalPath = req.files?.coverImage[0]?.path;
     // this is a common error
     let coverImageLocalPath;
-    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+    if (
+      req.files &&
+      Array.isArray(req.files.coverImage) &&
+      req.files.coverImage.length > 0
+    ) {
       coverImageLocalPath = req.files.coverImage[0].path;
     }
     // console.log('file cover image path is ', coverImageLocalPath);
@@ -74,31 +80,34 @@ async function registerUser(req, res) {
       });
     }
     const avatar = await uploadToCloudinary(avatarLocalPath);
-      let coverImage = await uploadToCloudinary(coverImageLocalPath);
-      if (!avatar) {
-          return res.status(400).json({
-              message:"avatar is needed"
-          })
-      }
-    const user =  await User.create({
-          fullname,
-          avatar: avatar.url,
-          coverImage: coverImage?.url || "",
-          email,
-          password,
-          username:username.toLowerCase()
-    })
+    let coverImage = await uploadToCloudinary(coverImageLocalPath);
+    if (!avatar) {
+      return res.status(400).json({
+        message: "avatar is needed",
+      });
+    }
+    const user = await User.create({
+      fullname,
+      avatar: avatar.url,
+      coverImage: coverImage?.url || "",
+      email,
+      password,
+      username: username.toLowerCase(),
+    });
     // remove the password and refresh token from the user and send to frontend
-    const createdUser = await User.findById(user._id).select("-password -refreshToken");
+    const createdUser = await User.findById(user._id).select(
+      "-password -refreshToken"
+    );
 
     if (!createdUser) {
       return res.status(400).json({
-        message:"something went wrong while registering user"
-      })
+        message: "something went wrong while registering user",
+      });
     }
-    return res.status(201).json({ createdUser  , message:"User created successfully" });
-  }
-  catch (error) {
+    return res
+      .status(201)
+      .json({ createdUser, message: "User created successfully" });
+  } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 }
@@ -119,58 +128,63 @@ async function loginUser(req, res) {
     const { username, email, password } = req.body;
     // console.log(username, 'username');
     // console.log(email, 'email');
-    if ((!username && !email)) {
+    if (!username && !email) {
       return res.status(400).json({
-        message: "username or email is needed"
+        message: "username or email is needed",
       });
     }
     const user = await User.findOne({
-      $or: [{ username }, { email }]
-    })
+      $or: [{ username }, { email }],
+    });
     // console.log(user, 'user is ');
 
     if (!user) {
       return res.status(404).json({
-        message:"user is not found"
-      })
+        message: "user is not found",
+      });
     }
     // console.log(`user is ${user}`);
 
-    let isPasswordiscorrect =   await user.isPasswordCorrect(password);
+    let isPasswordiscorrect = await user.isPasswordCorrect(password);
     // console.log("isPassisCorrect", isPasswordiscorrect);
     // checking for password
     if (!isPasswordiscorrect) {
       return res.status(401).json({
-        message:"password is incorrect"
-      })
+        message: "password is incorrect",
+      });
     }
 
-    const { accessToken, refreshToken } = await generateRefreshAndAccessToken(user._id);
+    const { accessToken, refreshToken } = await generateRefreshAndAccessToken(
+      user._id
+    );
     // console.log(generateRefreshAndAccessToken(user._id));
 
     // remove password and refresh Token from the user object
-    const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
+    const loggedInUser = await User.findById(user._id).select(
+      "-password -refreshToken"
+    );
 
     // set cookie
 
     const options = {
       httpOnly: true,
-      secure:true
-    }
+      secure: true,
+    };
 
     // send cookies and response.
-    return res.status(200)
+    return res
+      .status(200)
       .cookie("accessToken", accessToken, options)
       .cookie("refreshToken", refreshToken, options)
       .json({
-        user: loggedInUser, accessToken, refreshToken,
-        message:"user logged in successfully"
+        user: loggedInUser,
+        accessToken,
+        refreshToken,
+        message: "user logged in successfully",
       });
-
-
   } catch (error) {
     return res.status(500).json({
-      error: error.message
+      error: error.message,
     });
   }
 }
@@ -179,34 +193,33 @@ async function logoutUser(req, res) {
   /*
  -- find user from db
  -- remove the cookies and refresh token from db
- -- send empty user object abd clear the cookie
- -- better way is you find and update the refresh token as undefined and cookie as empty
+ -- send empty user object and clear the cookie
+ -- better way is you find and update the refresh token as undefined and cookie as empty or unset it.
   */
   try {
     await User.findByIdAndUpdate(
       req.user._id,
       {
-        $set: {
-          refreshToken:undefined
-        }
+        $unset: {
+          refreshToken: 1,
+        },
       },
       {
-        new:true
+        new: true,
       }
-
-    )
+    );
     const options = {
       httpOnly: true,
-      secure:true
-    }
+      secure: true,
+    };
     return res
       .status(200)
       .clearCookie("accessToken", options)
       .clearCookie("refreshToken", options)
-      .json({data:{}, message: "User has Logged Out SuccessFuLLy" });
+      .json({ data: {}, message: "User has Logged Out SuccessFuLLy" });
   } catch (error) {
     return res.status(500).json({
-      error: error.message
+      error: error.message,
     });
   }
 }
@@ -222,15 +235,17 @@ async function refreshAccessToken(req, res) {
   --> generate new tokens if true
   */
   try {
-    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+    const incomingRefreshToken =
+      req.cookies.refreshToken || req.body.refreshToken;
     // console.log('incomingRefreshToken', incomingRefreshToken);
     if (!incomingRefreshToken) {
       return res.status(401).json({
-        message: "Unauthorized Request"
+        message: "Unauthorized Request",
       });
     }
     // this can be done in the auth middleware itself by passing in the incoming token.
-    const decodedToken = jwt.verify(incomingRefreshToken,
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
     // console.log('decodedtoken is', decodedToken);
@@ -239,28 +254,27 @@ async function refreshAccessToken(req, res) {
     // console.log(`user is is ${user}`);
     if (!user) {
       return res.status(401).json({
-        message: "invalid token."
-      })
+        message: "invalid token.",
+      });
     }
     if (incomingRefreshToken !== user?.refreshToken) {
       return res.status(401).json({
-        message: "token expired."
-      })
+        message: "token expired.",
+      });
     }
     const options = {
       httpOnly: true,
       secure: true,
-    }
-    const { accessToken, newRefreshToken } = await generateRefreshAndAccessToken(user._id);
+    };
+    const { accessToken, newRefreshToken } =
+      await generateRefreshAndAccessToken(user._id);
     return res
-    .cookie('accessToken', accessToken, options)
-    .cookie('refreshToken', newRefreshToken, options)
-    .status(200) // Status should come before JSON
-    .json({ accessToken, refreshToken: newRefreshToken });
-
-  }
-  catch (error) {
-    return res.status(500).json({ error: error.message })
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", newRefreshToken, options)
+      .status(200) // Status should come before JSON
+      .json({ accessToken, refreshToken: newRefreshToken });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 }
 // function to changeUserCurrentPassword
@@ -273,32 +287,29 @@ async function changeChurrentUserPassword(req, res) {
   */
   try {
     const { oldPass, newPass } = req.body;
-   const user =  await User.findById(req.user?._id);
+    const user = await User.findById(req.user?._id);
     const isPasswordTrue = await user.isPasswordCorrect(oldPass);
     if (!isPasswordTrue) {
       return res.status(404).json({
-        message: "pass not true"
+        message: "pass not true",
       });
     }
     user.password = newPass;
     await user.save({ validateBeforeSave: false });
 
-    return res
-      .status(200)
-      .json({
-        data: {},
-        message: "pass changed successfully"
-      });
-
+    return res.status(200).json({
+      data: {},
+      message: "pass changed successfully",
+    });
   } catch (error) {
-    return res.status(500).json({ error: error.message })
+    return res.status(500).json({ error: error.message });
   }
 }
 // function to getCurrentUser
 async function getCurrentUser(req, res) {
   return res.status(200).json({
-    data: req.user
-  })
+    data: req.user,
+  });
 }
 // function to updateAccountDetails
 async function updateAccountDetails(req, res) {
@@ -312,29 +323,29 @@ async function updateAccountDetails(req, res) {
 
     if (!fullname || !email || !username) {
       return res.status(400).json({
-        message: "All fields are needed"
+        message: "All fields are needed",
       });
     }
     const user = await User.findByIdAndUpdate(
-      req.user?._id ,
+      req.user?._id,
       {
         $set: {
           fullname,
           email,
-          username
-        }
+          username,
+        },
       },
-      {new:true}
+      { new: true }
     ).select("-password");
 
     return res.status(200).json({
       data: { user },
-      message: "updated user details"
+      message: "updated user details",
     });
   } catch (error) {
     return res.status(500).json({
-     message:error.message
-   })
+      message: error.message,
+    });
   }
 }
 // function to updateUserAvatar
@@ -342,6 +353,7 @@ async function updateUserAvatar(req, res) {
   /*
 ->get single file from the avatarFilePath , do basic error handling
 ->upload the avatar to cloudinary , check if url is present . if not then throw error
+-> delete old image , use a helper function. find the file image, delete /unlink it.
 ->find user and update the user avatar.
 same logic for updateUserCoverImage
 */
@@ -349,34 +361,35 @@ same logic for updateUserCoverImage
     const avatarLocalPath = req.file?.path;
     if (!avatarLocalPath) {
       return res.status(400).json({
-        message: "avatar file missing"
+        message: "avatar file missing",
       });
     }
+    // TODO: delete old image/avatar:assignment
     const avatar = await uploadToCloudinary(avatarLocalPath);
     if (!avatar.url) {
       return res.status(400).json({
-        message: "error while uploading avatar"
+        message: "error while uploading avatar",
       });
     }
 
-    const user = await User.findByIdAndUpdate(req.user?._id,
+    const user = await User.findByIdAndUpdate(
+      req.user?._id,
       {
         $set: {
-          avatar: avatar.url
-        }
+          avatar: avatar.url,
+        },
       },
       { new: true }
     ).select("-password");
 
     return res.status(200).json({
       message: "updated avatar",
-      data: { user }
+      data: { user },
     });
-  }
- catch (error) {
+  } catch (error) {
     return res.status(500).json({
-      message:error.message
-    })
+      message: error.message,
+    });
   }
 }
 // function to updateUserCoverImage
@@ -385,37 +398,147 @@ async function updateUserCoverImage(req, res) {
     const coverImageLocalPath = req.file?.path;
     if (!coverImageLocalPath) {
       return res.status(400).json({
-        message: "avatar file missing"
+        message: "avatar file missing",
       });
     }
     const coverImage = await uploadToCloudinary(coverImageLocalPath);
     if (!coverImage.url) {
       return res.status(400).json({
-        message: "error while uploading avatar"
+        message: "error while uploading avatar",
       });
     }
 
-    const user = await User.findByIdAndUpdate(req.user?._id,
+    const user = await User.findByIdAndUpdate(
+      req.user?._id,
       {
         $set: {
-          coverImage:coverImage.url
-        }
+          coverImage: coverImage.url,
+        },
       },
       { new: true }
     ).select("-password");
 
     return res.status(200).json({
       message: "updated coverImage",
-      data: { user }
+      data: { user },
     });
-  }
- catch (error) {
+  } catch (error) {
     return res.status(500).json({
-      message:error.message
-    })
+      message: error.message,
+    });
   }
 }
 // function to getChannelProfile
+async function getUserChannelProfile(req, res) {
+  try {
+    /*
+ - get user from the params and do error handling
+ - find channel and apply aggregation as follows.
+ -> aggregation logic:
+ 1st : match : match username
+ 2nd : lookup : to join the field to subs model :
+ to get the total subscribers of a channel we need to select the channel. so we got all the subscribers.
+
+
+
+    */
+    const { username } = req.params;
+    if (!username?.trim()) {
+      return res.status(400).json({
+        message: "Username is Missing",
+      });
+    }
+    // add a whole bunch of pipelines.
+    const channel = await User.aggregate([
+      {
+        $match: {
+          username:username?.toLowerCase()
+        }
+      },
+      {
+        // to get the total subscribers of a channel
+        $lookup: {
+          from: "subscriptions",
+          localField: "_id",
+          foreignField: "channel",
+          as:"subscribers"
+        }
+      },
+      {
+        // to get the total channels we subscribed to
+        $lookup: {
+          from: "subscriptions",
+          localField: "_id",
+          foreignField: "subscriber",
+          as:"subscribedTo"
+        }
+      },
+      {
+      // add these fields in the join.
+        // count the number of subscribers of a channel and the number of channels a user has subscribed to
+        $addFields: {
+          subscribersCount: {
+            $size:"$subscribers"
+          },
+          channelsSubscriberToCount: {
+            $size:"subscribedTo"
+          }
+        }
+      },
+      // check if the user is Subscribed Or not. and add that field .
+      {
+        isSubscribed: {
+          $cond: {
+            if: {
+              $in:[req.user?._id,"$subscribers.subscriber"]
+            },
+            then: true,
+            else:false
+          }
+        }
+      },
+      // just show selected stuff to project in front-end
+      {
+        $project: {
+          fullname: 1,
+          username: 1,
+          subscribersCount: 1,
+          channelsSubscriberToCount: 1,
+          isSubscribed: 1,
+          avatar: 1,
+          coverImage: 1,
+          email: 1,
+        }
+      }
+    ]);
+
+    if (!channel.length) {
+      return res.status(400).json({
+        message: "channel does not exist"
+      });
+    }
+      return res.status(200).json({
+        data: channel[0],
+        message:"User Channel fetched successfullyyyy"
+      })
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+}
+
 // function to get userWatchHistory
 
-export { registerUser, loginUser  , logoutUser , refreshAccessToken , updateAccountDetails,changeChurrentUserPassword,updateUserAvatar,updateUserCoverImage};
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  updateAccountDetails,
+  changeChurrentUserPassword,
+  updateUserAvatar,
+  updateUserCoverImage,
+  getCurrentUser,
+  getUserChannelProfile,
+};
